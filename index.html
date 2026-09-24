@@ -269,4 +269,270 @@ const FALLBACK = [
 FALLBACK.forEach(s => s.thumb = "https://i.ytimg.com/vi/" + s.ytid + "/hqdefault.jpg");
 
 const CHIPQ = {romantic:"romantic hindi songs", bhojpuri:"bhojpuri hit songs", lofi:"lofi bollywood songs", punjabi:"punjabi hit songs"};
-const TITLES = {all:"All Songs", romantic:"Romantic", bhojpuri:"Bhojpuri", lofi:"Lo-Fi", punjabi:"Punjabi"};
+const TITLES = {all:"All Songs", romantic:"Romantic 💖", bhojpuri:"Bhojpuri ⚡", lofi:"Lo-Fi 🎧", punjabi:"Punjabi 💥"};
+const HOUR = 36e5;
+const $ = id => document.getElementById(id);
+const stored = (() => { try { return localStorage.getItem("bf_key") || ""; } catch (e) { return ""; } })();
+const KEY = (YT_API_KEY || stored).replace(/[^A-Za-z0-9_\-]/g, "");
+$("keyBtn").textContent = KEY ? "🔑 ✓" : "🔑";
+$("keyBtn").onclick = () => {
+  const k = prompt("YouTube API key paste karo (AIza se shuru hoti hai). Hatane ke liye khali chhod do:", "");
+  if (k === null) return;
+  try { localStorage.setItem("bf_key", k.replace(/[^A-Za-z0-9_\-]/g, "")); } catch (e) {}
+  location.reload();
+};
+
+/* ---------- YouTube Data API ---------- */
+const decode = t => { const x = document.createElement("textarea"); x.innerHTML = t; return x.value; };
+const mk = (id, title, artist, thumb) => ({ytid:id, title:decode(title), artist:decode(artist).replace(/ - Topic$/, ""), thumb:thumb || "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg"});
+
+async function api(path, params) {
+  const u = new URL("https://www.googleapis.com/youtube/v3/" + path);
+  Object.entries({...params, key:KEY}).forEach(([k, v]) => u.searchParams.set(k, v));
+  const r = await fetch(u);
+  if (!r.ok) { const e = new Error("API " + r.status); e.code = r.status; throw e; }
+  return r.json();
+}
+async function cached(key, ttl, fn) {
+  try { const c = JSON.parse(localStorage.getItem("bf_" + key)); if (c && Date.now() - c.t < ttl) return c.d; } catch (e) {}
+  const d = await fn();
+  try { localStorage.setItem("bf_" + key, JSON.stringify({t:Date.now(), d})); } catch (e) {}
+  return d;
+}
+const searchSongs = (q, n = 16) => cached("s:" + n + ":" + q.toLowerCase(), 6 * HOUR, async () => {
+  const j = await api("search", {part:"snippet", type:"video", videoCategoryId:10, videoEmbeddable:"true", videoSyndicated:"true", maxResults:n, q});
+  return j.items.map(i => mk(i.id.videoId, i.snippet.title, i.snippet.channelTitle, i.snippet.thumbnails.high && i.snippet.thumbnails.high.url));
+});
+const trendingSongs = n => cached("t:" + n, HOUR, async () => {
+  try {
+    const j = await api("videos", {part:"snippet,status", chart:"mostPopular", videoCategoryId:10, regionCode:REGION, maxResults:Math.min(50, n + 12)});
+    const l = j.items.filter(i => i.status.embeddable).slice(0, n).map(i => mk(i.id, i.snippet.title, i.snippet.channelTitle, i.snippet.thumbnails.high && i.snippet.thumbnails.high.url));
+    if (l.length) return l;
+  } catch (e) { if (e.code === 403) throw e; }
+  return searchSongs("trending hindi songs", n);
+});
+
+/* ---------- State ---------- */
+let view = "home", tag = "all", query = "", token = 0, debounce;
+let queue = [], index = -1, current = null;
+let favs = [];
+try {
+  favs = (JSON.parse(localStorage.getItem("bf_favs") || "[]")).map(f => typeof f === "string" ? FALLBACK.find(s => s.ytid === f) : f).filter(Boolean);
+} catch (e) {}
+const saveFavs = () => { try { localStorage.setItem("bf_favs", JSON.stringify(favs)); } catch (e) {} };
+const isFav = id => favs.some(f => f.ytid === id);
+
+/* ---------- Rendering ---------- */
+function makeCard(song, list, i) {
+  const card = document.createElement("div");
+  card.className = "song-card" + (current && current.ytid === song.ytid ? " current" : "");
+  card.dataset.id = song.ytid; card.tabIndex = 0; card.setAttribute("role", "button");
+  card.style.animationDelay = Math.min(i, 12) * 45 + "ms";
+  const box = document.createElement("div"); box.className = "cover-box";
+  const img = document.createElement("img");
+  img.className = "cover"; img.src = song.thumb; img.alt = song.title; img.loading = "lazy";
+  img.onerror = () => { img.onerror = null; img.src = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=200"; };
+  const play = document.createElement("button"); play.className = "card-play"; play.textContent = "▶"; play.setAttribute("aria-label", "Play " + song.title);
+  const fav = document.createElement("button");
+  fav.className = "fav" + (isFav(song.ytid) ? " on" : ""); fav.textContent = isFav(song.ytid) ? "♥" : "♡"; fav.setAttribute("aria-label", "Toggle favorite");
+  fav.onclick = e => { e.stopPropagation(); toggleFav(song); };
+  const eq = document.createElement("div"); eq.className = "eq"; eq.innerHTML = "<i></i><i></i><i></i>";
+  box.append(img, play, fav, eq);
+  const name = document.createElement("div"); name.className = "song-name"; name.textContent = song.title;
+  const art = document.createElement("div"); art.className = "song-artist"; art.textContent = song.artist;
+  card.append(box, name, art);
+  const go = () => playFromList(song, list);
+  card.onclick = go; card.onkeydown = e => { if (e.key === "Enter") go(); };
+  return card;
+}
+function addSection(root, title, list, emptyMsg) {
+  const sec = document.createElement("section"); sec.className = "section";
+  const h = document.createElement("div"); h.className = "section-title"; h.textContent = title; sec.appendChild(h);
+  if (!list.length) { const e = document.createElement("div"); e.className = "empty"; e.textContent = emptyMsg || "Koi song nahi mila."; sec.appendChild(e); }
+  else { const g = document.createElement("div"); g.className = "song-grid"; list.forEach((s, i) => g.appendChild(makeCard(s, list, i))); sec.appendChild(g); }
+  root.appendChild(sec);
+}
+function skeleton() { const g = document.createElement("div"); g.className = "song-grid"; g.innerHTML = '<div class="sk"></div>'.repeat(8); return g; }
+
+function localMatch(s) {
+  const q = query.trim().toLowerCase();
+  if (tag !== "all" && !(s.tags || []).includes(tag)) return false;
+  return !q || s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q);
+}
+function apiNote(e) {
+  if (!KEY) return "YouTube API key abhi add nahi hai, isliye sirf demo songs aur local search chal rahi hai. Asli YouTube search ke liye upar 🔑 button dabake apni key paste karo.";
+  if (e.code === 403) return "YouTube API ne request rok di (quota khatam ya key ka referrer restriction is site se match nahi karta). Demo songs dikha raha hoon.";
+  if (e.code === 400) return "API key valid nahi lag rahi. Key dobara check karo. Demo songs dikha raha hoon.";
+  return "YouTube se connect nahi ho paya. Internet check karo. Demo songs dikha raha hoon.";
+}
+
+async function render() {
+  const my = ++token, root = $("content"), q = query.trim();
+  $("hero").style.display = (view === "home" && !q && tag === "all") ? "" : "none";
+  $("notice").textContent = "";
+  if (view === "favorites") {
+    root.innerHTML = "";
+    const list = favs.filter(localMatch);
+    addSection(root, "Your Favorites ♥", list, favs.length ? "Search se koi favorite match nahi hua." : "Abhi koi favorite nahi. Kisi bhi song par ♡ dabao.");
+    return;
+  }
+  root.innerHTML = ""; root.appendChild(skeleton());
+  let sections = [];
+  try {
+    if (!KEY) throw new Error("nokey");
+    if (q) sections = [["Results for “" + q + "”", await searchSongs(q)]];
+    else if (tag !== "all") sections = [[TITLES[tag], await searchSongs(CHIPQ[tag])]];
+    else if (view === "discover") sections = [["Trending in India 🔥", await trendingSongs(24)]];
+    else {
+      const [t, r, b] = await Promise.all([trendingSongs(8), searchSongs(CHIPQ.romantic, 8), searchSongs(CHIPQ.bhojpuri, 8)]);
+      sections = [["Trending Now 🔥", t], ["Romantic Hindi Hits 💖", r], ["Bhojpuri Bawaal Hits ⚡", b]];
+    }
+  } catch (e) {
+    if (my !== token) return;
+    $("notice").textContent = apiNote(e);
+    if (q || tag !== "all") sections = [[q ? "Results for “" + q + "”" : TITLES[tag], FALLBACK.filter(localMatch)]];
+    else if (view === "discover") sections = [["All Songs", FALLBACK]];
+    else sections = [["Trending Now 🔥", FALLBACK.filter(s => s.cat === "trending")], ["Romantic Hindi Hits 💖", FALLBACK.filter(s => s.cat === "romantic")]];
+  }
+  if (my !== token) return;
+  root.innerHTML = "";
+  sections.forEach(([t, l]) => addSection(root, t, l));
+}
+
+function toggleFav(song) {
+  favs = isFav(song.ytid) ? favs.filter(f => f.ytid !== song.ytid) : [...favs, {ytid:song.ytid, title:song.title, artist:song.artist, thumb:song.thumb}];
+  saveFavs();
+  if (view === "favorites") return render();
+  document.querySelectorAll('.song-card[data-id="' + song.ytid + '"] .fav').forEach(b => { b.classList.toggle("on", isFav(song.ytid)); b.textContent = isFav(song.ytid) ? "♥" : "♡"; });
+}
+
+/* ---------- Navigation & search ---------- */
+function setView(v) {
+  view = v;
+  document.querySelectorAll("[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view === v));
+  render(); window.scrollTo({top:0, behavior:"smooth"});
+}
+document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => setView(b.dataset.view));
+$("chips").onclick = e => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  tag = c.dataset.tag;
+  document.querySelectorAll(".chip").forEach(x => x.classList.toggle("active", x === c));
+  render();
+};
+$("searchInput").oninput = e => {
+  query = e.target.value;
+  clearTimeout(debounce);
+  debounce = setTimeout(render, KEY ? 500 : 120);   /* debounce = kam API quota use hota hai */
+};
+$("searchInput").onkeydown = e => { if (e.key === "Enter") { clearTimeout(debounce); render(); e.target.blur(); } };
+
+/* ---------- Player ---------- */
+let yt = null, ready = false, pending = null, seeking = false, shuffle = false, repeat = false, watchdog = null;
+const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+const setFill = el => el.style.setProperty("--p", el.value / (el.max || 100) * 100 + "%");
+
+function setPlayIcon(state) {
+  const b = $("playBtn"), P = YT.PlayerState, busy = state === P.BUFFERING || state === P.UNSTARTED;
+  b.classList.toggle("loading", busy);
+  b.textContent = state === P.PLAYING ? "⏸" : busy ? "…" : "▶";
+}
+function armWatchdog(song) {
+  clearTimeout(watchdog);
+  watchdog = setTimeout(() => {
+    if (yt.getPlayerState() === YT.PlayerState.PLAYING) return;
+    toast("Slow load, dobara try kar raha hoon…");
+    yt.loadVideoById({videoId:song.ytid});
+    watchdog = setTimeout(() => { if (yt.getPlayerState() !== YT.PlayerState.PLAYING) toast("Video load nahi ho raha. Internet check karo ya dusra song try karo."); }, 7000);
+  }, 6000);
+}
+window.initYT = function () {
+  const vars = {playsinline:1, controls:0, rel:0, modestbranding:1, enablejsapi:1};
+  if (location.protocol.startsWith("http")) vars.origin = location.origin;
+  yt = new YT.Player("yt", {
+    width:"100%", height:"100%", playerVars:vars,
+    events:{
+      onReady:() => {
+        ready = true; yt.setVolume(+$("volume").value);
+        if (pending) { yt.loadVideoById({videoId:pending.ytid}); armWatchdog(pending); pending = null; }
+      },
+      onStateChange:e => {
+        setPlayIcon(e.data);
+        const playing = e.data === YT.PlayerState.PLAYING;
+        document.body.classList.toggle("playing", playing);
+        if (playing) { clearTimeout(watchdog); if (current) $("currentArtist").textContent = current.artist; }
+        else if (e.data === YT.PlayerState.BUFFERING) $("currentArtist").textContent = "Loading…";
+        if (e.data === YT.PlayerState.ENDED) { if (repeat) { yt.seekTo(0, true); yt.playVideo(); } else next(); }
+      },
+      onError:() => { clearTimeout(watchdog); toast("Ye video play nahi ho paya, next song chal raha hai"); setTimeout(next, 1200); }
+    }
+  });
+};
+if (window.__ytReady) initYT();
+
+function playFromList(song, list) { queue = list.slice(); index = queue.findIndex(s => s.ytid === song.ytid); load(song); }
+function load(song) {
+  current = song;
+  $("currentTitle").textContent = song.title; $("currentArtist").textContent = song.artist; $("currentThumb").src = song.thumb;
+  $("progress").value = 0; setFill($("progress")); $("tNow").textContent = "0:00"; $("tEnd").textContent = "0:00";
+  $("ambient").style.backgroundImage = "url(" + song.thumb + ")"; $("ambient").classList.add("on");
+  $("ytBox").classList.add("show");
+  document.title = song.title + " — BeatFlow";
+  document.querySelectorAll(".song-card").forEach(c => c.classList.toggle("current", c.dataset.id === song.ytid));
+  if (ready) { yt.loadVideoById({videoId:song.ytid}); armWatchdog(song); } else pending = song;
+  setMediaSession(song);
+}
+function next() {
+  if (!queue.length) return;
+  if (shuffle && queue.length > 1) { let n; do { n = Math.floor(Math.random() * queue.length); } while (n === index); index = n; }
+  else index = (index + 1) % queue.length;
+  load(queue[index]);
+}
+function prev() {
+  if (!queue.length) return;
+  if (ready && yt.getCurrentTime() > 3) { yt.seekTo(0, true); return; }
+  index = (index - 1 + queue.length) % queue.length; load(queue[index]);
+}
+function setMediaSession(s) {
+  if (!("mediaSession" in navigator)) return;
+  navigator.mediaSession.metadata = new MediaMetadata({title:s.title, artist:s.artist, album:"BeatFlow", artwork:[{src:s.thumb, sizes:"480x360", type:"image/jpeg"}]});
+  navigator.mediaSession.setActionHandler("play", () => yt.playVideo());
+  navigator.mediaSession.setActionHandler("pause", () => yt.pauseVideo());
+  navigator.mediaSession.setActionHandler("previoustrack", prev);
+  navigator.mediaSession.setActionHandler("nexttrack", next);
+}
+
+$("playBtn").onclick = () => {
+  if (!current) return toast("Pehle koi song select karo");
+  if (!ready) return;
+  yt.getPlayerState() === YT.PlayerState.PLAYING ? yt.pauseVideo() : yt.playVideo();
+};
+$("nextBtn").onclick = next; $("prevBtn").onclick = prev;
+$("shuffleBtn").onclick = e => { shuffle = !shuffle; e.currentTarget.classList.toggle("on", shuffle); toast(shuffle ? "Shuffle ON" : "Shuffle OFF"); };
+$("repeatBtn").onclick = e => { repeat = !repeat; e.currentTarget.classList.toggle("on", repeat); toast(repeat ? "Repeat ON" : "Repeat OFF"); };
+$("vidBtn").onclick = () => $("ytBox").classList.toggle("big");
+try { const v = localStorage.getItem("bf_vol"); if (v !== null) $("volume").value = v; } catch (e) {}
+setFill($("volume"));
+$("volume").oninput = e => { setFill(e.target); if (ready) yt.setVolume(+e.target.value); try { localStorage.setItem("bf_vol", e.target.value); } catch (x) {} };
+$("progress").oninput = () => { seeking = true; setFill($("progress")); if (ready) $("tNow").textContent = fmt(yt.getDuration() * $("progress").value / 100); };
+$("progress").onchange = () => { if (ready) yt.seekTo(yt.getDuration() * $("progress").value / 100, true); seeking = false; };
+setInterval(() => {
+  if (!ready || !current || seeking) return;
+  const d = yt.getDuration(), t = yt.getCurrentTime();
+  if (d > 0) { $("progress").value = t / d * 100; setFill($("progress")); $("tNow").textContent = fmt(t); $("tEnd").textContent = fmt(d); }
+}, 500);
+document.addEventListener("keydown", e => {
+  const a = document.activeElement;
+  if (/INPUT|TEXTAREA/.test(a.tagName) && a.type !== "range") return;
+  if (!ready || !current) return;
+  if (e.code === "Space") { e.preventDefault(); $("playBtn").click(); }
+  if (e.code === "ArrowRight") yt.seekTo(yt.getCurrentTime() + 5, true);
+  if (e.code === "ArrowLeft") yt.seekTo(yt.getCurrentTime() - 5, true);
+});
+
+let toastTimer;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2600); }
+
+render();
+</script>
+</body>
+</html>
