@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="Utkarsh (@utkxrsshh._)">
+<title>BeatFlow — Music Reimagined</title>
+<script>window.addEventListener("error",function(e){if(!e.message||e.message==="Script error.")return;var d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;right:0;z-index:9999;background:#7a1020;color:#fff;font:12px/1.5 Arial;padding:10px 14px";d.textContent="Page error: "+e.message+(e.lineno?" (line "+e.lineno+")":"");(document.body||document.documentElement).appendChild(d);});</script>
+<link rel="preconnect" href="https://www.youtube.com">
+<link rel="preconnect" href="https://www.googleapis.com">
+<link rel="preconnect" href="https://i.ytimg.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+<script>window.onYouTubeIframeAPIReady=function(){window.__ytReady=true;if(window.initYT)initYT();};</script>
+<script src="https://www.youtube.com/iframe_api" async></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#06080c;--border:rgba(255,255,255,.09);--muted:#9aa1b1;--cyan:#00e5ff;--blue:#009dff;--purple:#7b3cff;--pink:#ff3c9d;--sidebar:235px;--player:88px;--bnav:0px;--p:0%}
+html{scroll-behavior:smooth}
+body{min-height:100vh;background:var(--bg);color:#fff;font-family:Sora,Arial,Helvetica,sans-serif;overflow-x:hidden}
+button{font-family:inherit}
+button:focus-visible,.chip:focus-visible,.song-card:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+/* animated background */
+.ambient{position:fixed;inset:-10%;z-index:-6;background-size:cover;background-position:center;filter:blur(90px) saturate(1.4);opacity:0;transition:opacity 1.2s,background-image .6s}
+.ambient.on{opacity:.22}
+.blob{position:fixed;width:420px;height:420px;border-radius:50%;filter:blur(110px);z-index:-5;pointer-events:none;animation:drift 22s ease-in-out infinite alternate}
+.blob.a{background:rgba(0,229,255,.16);top:-140px;left:-100px}
+.blob.b{background:rgba(123,60,255,.18);right:-140px;bottom:0;animation-delay:-8s}
+.blob.c{background:rgba(255,60,157,.09);left:40%;top:35%;animation-delay:-14s}
+@keyframes drift{to{transform:translate(90px,-70px) scale(1.25)}}
+.grid-bg{position:fixed;inset:0;z-index:-4;pointer-events:none;opacity:.3;background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:46px 46px}
+
+/* sidebar */
+.sidebar{position:fixed;inset:0 auto 0 0;width:var(--sidebar);padding:24px 16px;background:rgba(8,10,15,.6);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border-right:1px solid var(--border);z-index:100}
+.logo{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:800;color:var(--cyan);margin:0 10px 40px}
+.logo-icon{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:11px;color:#000;background:linear-gradient(135deg,var(--cyan),var(--blue));box-shadow:0 0 25px rgba(0,229,255,.3)}
+.nav-title{color:#6b7280;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin:0 10px 12px}
+.nav{display:flex;flex-direction:column;gap:5px}
+.nav button{width:100%;border:0;background:transparent;color:#8c929f;padding:12px;border-radius:11px;text-align:left;cursor:pointer;font-size:13px;transition:.25s}
+.nav button:hover,.nav button.active{color:#fff;background:rgba(0,229,255,.09)}
+.nav button.active{box-shadow:inset 2px 0 var(--cyan)}
+.nav button span{margin-right:10px}
+.sidebar-bottom{position:absolute;left:16px;right:16px;bottom:20px}
+.user-box{padding:12px;border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,.04);display:flex;align-items:center;gap:10px;text-decoration:none;color:#fff;transition:.25s}
+.user-box:hover{border-color:rgba(255,60,157,.5);background:rgba(255,60,157,.08)}
+.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#feda75,#fa7e1e,#d62976,#962fbf);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+.uname{font-size:12px;font-weight:600}.handle{font-size:10px;color:var(--cyan);margin-top:2px}
+
+/* main */
+.main{margin-left:var(--sidebar);min-height:100vh;padding:22px 28px calc(var(--player) + var(--bnav) + 30px)}
+.topbar{display:flex;align-items:center;gap:15px;margin-bottom:24px}
+.mobile-logo{display:none;color:var(--cyan);font-weight:800;font-size:18px;white-space:nowrap}
+.search-wrap{position:relative;flex:1;max-width:650px}
+.search{width:100%;height:48px;border-radius:15px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:#fff;padding:0 16px 0 46px;outline:none;font-size:14px;font-family:inherit;transition:.3s}
+.search:focus{border-color:rgba(0,229,255,.6);box-shadow:0 0 0 4px rgba(0,229,255,.08),0 0 30px rgba(0,229,255,.12)}
+.search-icon{position:absolute;left:16px;top:14px;color:#777e8c;pointer-events:none}
+
+.hero{position:relative;min-height:250px;border-radius:26px;border:1px solid var(--border);background:linear-gradient(115deg,rgba(0,229,255,.13),rgba(123,60,255,.17),rgba(255,60,157,.09));background-size:200% 200%;animation:sheen 14s ease infinite;backdrop-filter:blur(10px);padding:38px;display:flex;justify-content:space-between;align-items:center;overflow:hidden;margin-bottom:25px}
+@keyframes sheen{50%{background-position:100% 50%}}
+.small-label{color:var(--cyan);font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:13px}
+.hero h1{font-size:clamp(30px,4vw,50px);line-height:1.08;margin-bottom:15px;font-weight:800}
+.hero h1 span{background:linear-gradient(90deg,var(--cyan),var(--purple),var(--pink),var(--cyan));background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:flow 8s linear infinite}
+@keyframes flow{to{background-position:-300% 0}}
+.hero p{color:#a9afbc;font-size:13px;line-height:1.75;max-width:480px;margin-bottom:18px}
+.credit{display:inline-flex;align-items:center;gap:8px;font-size:11px;color:#fff;text-decoration:none;padding:8px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);transition:.25s}
+.credit:hover{background:linear-gradient(90deg,#d62976,#962fbf);border-color:transparent}
+.disc{flex:none;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,#111 0 12%,transparent 13%),repeating-radial-gradient(circle,#2a2e38 0 2px,#07090d 3px 5px);border:8px solid #191c24;box-shadow:0 0 40px rgba(0,229,255,.2),0 0 100px rgba(123,60,255,.16);animation:spin 10s linear infinite;animation-play-state:paused}
+body.playing .disc{animation-play-state:running}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.notice{display:none;margin-bottom:18px;padding:12px 14px;border:1px solid rgba(255,190,60,.35);background:rgba(255,190,60,.07);border-radius:12px;font-size:12px;line-height:1.6;color:#ffd27a}
+.notice:not(:empty){display:block}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-bottom:28px}
+.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;border:1px solid var(--border);background:rgba(255,255,255,.04);color:#b0b6c2;padding:9px 16px;border-radius:20px;cursor:pointer;font-size:12px;transition:.25s}
+.chip:hover{border-color:rgba(0,229,255,.4);color:#fff}
+.chip.active{color:#000;background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 22px rgba(0,229,255,.35)}
+
+.section{margin-bottom:34px}
+.section-title{font-size:18px;font-weight:800;margin-bottom:15px}
+.song-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}
+.song-card{position:relative;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:18px;padding:10px;cursor:pointer;transition:transform .3s,background .3s,border-color .3s,box-shadow .3s;min-width:0;animation:rise .55s cubic-bezier(.2,.7,.2,1) backwards}
+@keyframes rise{from{opacity:0;transform:translateY(18px) scale(.97)}}
+.song-card:hover{transform:translateY(-6px);background:rgba(255,255,255,.08);border-color:rgba(0,229,255,.3);box-shadow:0 18px 40px rgba(0,0,0,.4),0 0 30px rgba(0,229,255,.08)}
+.song-card.current{border-color:var(--cyan);box-shadow:0 0 28px rgba(0,229,255,.18)}
+.cover-box{position:relative;aspect-ratio:1/1;margin-bottom:10px;overflow:hidden;border-radius:12px}
+.cover{width:100%;height:100%;object-fit:cover;display:block;background:#151922;transition:transform .5s}
+.song-card:hover .cover{transform:scale(1.08)}
+.card-play,.fav{position:absolute;bottom:8px;width:36px;height:36px;border:0;border-radius:50%;cursor:pointer}
+.card-play{right:8px;background:var(--cyan);color:#000;opacity:0;transform:translateY(8px);transition:.25s;box-shadow:0 0 20px rgba(0,229,255,.5)}
+.song-card:hover .card-play{opacity:1;transform:none}
+.fav{left:8px;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);color:#fff;font-size:16px;transition:.2s}
+.fav:hover{transform:scale(1.15)}.fav.on{color:var(--pink)}
+.eq{display:none;position:absolute;right:8px;top:8px;gap:2px;align-items:flex-end;height:16px;padding:4px 6px;background:rgba(0,0,0,.6);border-radius:8px;box-sizing:content-box}
+.eq i{width:3px;background:var(--cyan);border-radius:2px;height:4px;animation:bar .9s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:-.3s}.eq i:nth-child(3){animation-delay:-.6s}
+@keyframes bar{50%{height:16px}}
+.song-card.current .eq{display:flex}
+body:not(.playing) .eq i{animation-play-state:paused}
+.song-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.song-artist{color:var(--muted);font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk{aspect-ratio:4/5;border-radius:18px;background:linear-gradient(100deg,rgba(255,255,255,.04) 30%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.04) 70%);background-size:250% 100%;animation:shimmer 1.3s linear infinite}
+@keyframes shimmer{to{background-position:-250% 0}}
+.empty{color:var(--muted);font-size:14px;padding:30px 0;line-height:1.7}
+
+/* player */
+.player{position:fixed;left:var(--sidebar);right:0;bottom:var(--bnav);height:var(--player);background:rgba(8,10,15,.72);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);border-top:1px solid var(--border);z-index:300;display:grid;grid-template-columns:1fr 1.5fr 1fr;grid-template-areas:"np btn vol" "np prog vol";align-items:center;column-gap:20px;padding:9px 20px}
+.now-playing{grid-area:np;display:flex;align-items:center;gap:12px;min-width:0}
+.now-playing>div{min-width:0}
+.player-cover{width:56px;height:56px;border-radius:12px;object-fit:cover;background:#171b24;flex:none;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+.player-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-artist{color:var(--muted);font-size:11px;margin-top:4px}
+.control-buttons{grid-area:btn;display:flex;align-items:center;justify-content:center;gap:18px}
+.control{background:none;border:0;color:#b8bdc8;cursor:pointer;font-size:16px;padding:4px;transition:.2s}
+.control:hover{color:#fff;transform:scale(1.15)}.control.on{color:var(--cyan)}
+.play-button{width:40px;height:40px;border:0;border-radius:50%;background:#fff;color:#000;cursor:pointer;font-size:14px;transition:.2s}
+.play-button:hover{transform:scale(1.08)}.play-button.loading{opacity:.65}
+body.playing .play-button{animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,229,255,.55)}100%{box-shadow:0 0 0 14px rgba(0,229,255,0)}}
+.progress-row{grid-area:prog;display:flex;align-items:center;gap:8px}
+.time{width:36px;color:#8a90a0;font-size:10px;text-align:center}
+input[type=range]{flex:1;height:5px;appearance:none;-webkit-appearance:none;border-radius:5px;cursor:pointer;background:linear-gradient(90deg,var(--cyan),var(--purple)) 0/var(--p) 100% no-repeat,#2a2f3a}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 0 10px rgba(0,229,255,.8)}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;background:#fff}
+.volume-box{grid-area:vol;display:flex;justify-content:flex-end;align-items:center;gap:9px}
+.volume{flex:none;width:100px}
+#ytBox{position:fixed;right:20px;bottom:calc(var(--player) + var(--bnav) + 14px);width:250px;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid rgba(0,229,255,.28);box-shadow:0 14px 44px rgba(0,0,0,.6),0 0 34px rgba(0,229,255,.1);z-index:350;opacity:0;pointer-events:none;transition:width .35s,opacity .35s;background:#000}
+#ytBox.show{opacity:1;pointer-events:auto}
+#ytBox.big{width:min(560px,calc(100vw - 40px))}
+#ytBox iframe{width:100%;height:100%;display:block;border:0}
+
+.footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);text-align:center;color:var(--muted);font-size:11px;line-height:1.8}
+.footer a{color:var(--cyan);text-decoration:none}
+.toast{position:fixed;left:50%;bottom:calc(var(--player) + var(--bnav) + 16px);transform:translateX(-50%);background:rgba(27,32,43,.95);border:1px solid var(--border);padding:10px 16px;border-radius:12px;font-size:13px;z-index:400;opacity:0;pointer-events:none;transition:.3s;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+.bnav{display:none}
+
+@media(max-width:900px){
+  :root{--player:112px;--bnav:58px}
+  .sidebar{display:none}
+  .main{margin-left:0;padding:15px 14px calc(var(--player) + var(--bnav) + 24px)}
+  .mobile-logo{display:block}
+  .hero{padding:26px 22px;min-height:200px}.disc{display:none}
+  .player{left:0;grid-template-columns:1fr auto;grid-template-areas:"np btn" "prog prog";row-gap:6px;padding:8px 12px}
+  .control-buttons{gap:10px}.volume-box,.opt{display:none}
+  .song-grid{grid-template-columns:repeat(2,1fr)}
+  #ytBox{right:12px;width:160px}#ytBox.big{width:calc(100vw - 24px)}
+  .bnav{display:flex;position:fixed;left:0;right:0;bottom:0;height:var(--bnav);background:rgba(8,10,15,.85);backdrop-filter:blur(20px);border-top:1px solid var(--border);z-index:310}
+  .bnav button{flex:1;border:0;background:none;color:#8c929f;font-size:11px;cursor:pointer}
+  .bnav button.active{color:var(--cyan)}
+  .bnav span{display:block;font-size:17px;margin-bottom:2px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="ambient" id="ambient"></div>
+<div class="blob a"></div><div class="blob b"></div><div class="blob c"></div><div class="grid-bg"></div>
+
+<aside class="sidebar">
+  <div class="logo"><div class="logo-icon">⚡</div>BeatFlow</div>
+  <div class="nav-title">Main Menu</div>
+  <div class="nav">
+    <button data-view="home" class="active"><span>⌂</span>Home</button>
+    <button data-view="discover"><span>◈</span>Discover</button>
+    <button data-view="favorites"><span>♥</span>Favorites</button>
+  </div>
+  <div class="sidebar-bottom">
+    <a class="user-box" href="https://www.instagram.com/utkxrsshh._?stkn=MWR1OGF1dHB3bjdjYw==" target="_blank" rel="noopener">
+      <div class="avatar">U</div>
+      <div><div class="uname">Utkarsh</div><div class="handle">@utkxrsshh._</div></div>
+    </a>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="mobile-logo">⚡ BeatFlow</div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="search" id="searchInput" class="search" placeholder="Search any song or artist on YouTube..." aria-label="Search" autocomplete="off">
+    </div>
+    <button class="chip" id="keyBtn" style="flex:none" title="YouTube API key"></button>
+  </header>
+
+  <section class="hero" id="hero">
+    <div>
+      <div class="small-label">Featured vibe</div>
+      <h1>Next-Gen <span>Music Stream</span></h1>
+      <p>Search any song, play it instantly, and keep your favorites. Powered by the YouTube Data API.</p>
+      <a class="credit" href="https://www.instagram.com/utkxrsshh._?stkn=MWR1OGF1dHB3bjdjYw==" target="_blank" rel="noopener">📸 Built by Utkarsh · @utkxrsshh._</a>
+    </div>
+    <div class="disc"></div>
+  </section>
+
+  <div class="notice" id="notice"></div>
+
+  <div class="chips" id="chips">
+    <button class="chip active" data-tag="all">🔥 All Hits</button>
+    <button class="chip" data-tag="romantic">💖 Romantic</button>
+    <button class="chip" data-tag="bhojpuri">⚡ Bhojpuri</button>
+    <button class="chip" data-tag="lofi">🎧 Lo-Fi</button>
+    <button class="chip" data-tag="punjabi">💥 Punjabi</button>
+  </div>
+
+  <div id="content"></div>
+
+  <footer class="footer">
+    Designed &amp; Developed with ❤️ by Utkarsh | Instagram: <a href="https://www.instagram.com/utkxrsshh._?stkn=MWR1OGF1dHB3bjdjYw==" target="_blank" rel="noopener">@utkxrsshh._</a>
+  </footer>
+</main>
+
+<div class="player">
+  <div class="now-playing">
+    <img id="currentThumb" class="player-cover" src="https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=200" alt="Cover">
+    <div>
+      <div id="currentTitle" class="player-title">Select a Song</div>
+      <div id="currentArtist" class="player-artist">BeatFlow</div>
+    </div>
+  </div>
+  <div class="control-buttons">
+    <button class="control opt" id="shuffleBtn" aria-label="Shuffle" title="Shuffle">🔀</button>
+    <button class="control" id="prevBtn" aria-label="Previous">⏮</button>
+    <button class="play-button" id="playBtn" aria-label="Play or pause">▶</button>
+    <button class="control" id="nextBtn" aria-label="Next">⏭</button>
+    <button class="control opt" id="repeatBtn" aria-label="Repeat" title="Repeat">🔁</button>
+    <button class="control" id="vidBtn" aria-label="Resize video" title="Video bada/chhota">⤢</button>
+  </div>
+  <div class="progress-row">
+    <span class="time" id="tNow">0:00</span>
+    <input type="range" id="progress" min="0" max="100" value="0" step="0.1" aria-label="Seek">
+    <span class="time" id="tEnd">0:00</span>
+  </div>
+  <div class="volume-box">
+    <span>🔊</span>
+    <input type="range" class="volume" id="volume" min="0" max="100" value="80" aria-label="Volume">
+  </div>
+</div>
+
+<nav class="bnav">
+  <button data-view="home" class="active"><span>⌂</span>Home</button>
+  <button data-view="discover"><span>◈</span>Discover</button>
+  <button data-view="favorites"><span>♥</span>Favorites</button>
+</nav>
+
+<div id="ytBox"><div id="yt"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ SETTINGS ============
+   1. Google Cloud Console -> YouTube Data API v3 enable karo
+   2. API key banao, HTTP referrer restrict karo: https://buildwithutkarshh.github.io/*
+   3. Key neeche paste karo */
+const YT_API_KEY = "";
+const REGION = "IN";
+
+/* Demo songs: sirf tab dikhte hain jab API key na ho ya API fail ho */
+const FALLBACK = [
+  {ytid:"BddP6PYo2gs",title:"Kesariya",artist:"Arijit Singh",cat:"trending",tags:["romantic"]},
+  {ytid:"XO8wew38VM8",title:"Millionaire",artist:"Yo Yo Honey Singh",cat:"trending",tags:["punjabi"]},
+  {ytid:"VK6G3iOqYxM",title:"Tauba Tauba",artist:"Karan Aujla",cat:"trending",tags:["punjabi"]},
+  {ytid:"NbyHNASFi6U",title:"Soulmate",artist:"Badshah & Arijit",cat:"trending",tags:["romantic"]},
+  {ytid:"IJq0yyWug1k",title:"Tum Hi Ho",artist:"Arijit Singh",cat:"romantic",tags:["romantic"]},
+  {ytid:"ElZfdU54Cp8",title:"Apna Bana Le",artist:"Arijit Singh",cat:"romantic",tags:["romantic"]},
+  {ytid:"gvyUuxdRdR4",title:"Raataan Lambiyan",artist:"Jubin Nautiyal",cat:"romantic",tags:["romantic"]},
+  {ytid:"V7LwfY5U5WI",title:"Ranjha",artist:"B Praak",cat:"romantic",tags:["romantic"]}
+];
+FALLBACK.forEach(s => s.thumb = "https://i.ytimg.com/vi/" + s.ytid + "/hqdefault.jpg");
+
+const CHIPQ = {romantic:"romantic hindi songs", bhojpuri:"bhojpuri hit songs", lofi:"lofi bollywood songs", punjabi:"punjabi hit songs"};
+const TITLES = {all:"All Songs", romantic:"Romantic", bhojpuri:"Bhojpuri", lofi:"Lo-Fi", punjabi:"Punjabi"};
