@@ -1,0 +1,20 @@
+{
+  "name": "BeatFlow Music",
+  "short_name": "BeatFlow",
+  "start_url": "/Beatflow-webpage/",
+  "display": "standalone",
+  "background_color": "#07090d",
+  "theme_color": "#07090d",
+  "icons": [
+    {
+      "src": "https://i.ibb.co/6R34567/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://i.ibb.co/6R34567/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
